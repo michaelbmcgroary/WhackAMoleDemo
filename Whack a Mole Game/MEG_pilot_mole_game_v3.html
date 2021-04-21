@@ -1,0 +1,389 @@
+﻿<!DOCTYPE html>
+<script type="text/javascript" src="http://code.jquery.com/jquery-1.7.1.min.js"></script>
+<meta name="viewport" content="initial-scale=1, maximum-scale=1">
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Whack A Mole!</title>
+  <link href='https://fonts.googleapis.com/css?family=Amatic+SC:400,700' rel='stylesheet' type='text/css'>
+  <link rel="stylesheet" href="style.css">
+</head>
+<!--
+Originally attempted to use react to output to file, looking for other ways to do so, most likely through the use of node js
+<script data-main="MEG_pilot_mole_game_v2.js" src="require.js"></script>
+-->
+<body>
+
+
+
+  <head>
+      <meta name="viewport" content="width=device-width, user-scalable=no" />
+      <title>Press and Hold</title>
+      <style>
+        #item {
+          margin-left: auto;
+          margin-right: auto;
+          width: 150px;
+          height: 150px;
+          position: absolute;
+          top: 800px;
+          left:0;
+          right:0;
+          background-color: rgb(243, 11, 11);
+          border: 5px #111;
+          border-radius: 50%;
+
+
+        }
+
+      </style>
+    </head>
+
+    <body>
+        <div id="item"></div>
+        <head>
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <!-- change the values below to set the square position -->
+            <style>
+
+            .square {
+              position: fixed;
+              top: 5px;
+              right: 5px;
+              height: 50px;
+              width: 50px;
+              background-color: rgb(255, 255, 255);
+            }
+            </style>
+            </head>
+            <body>
+
+            <div id = "squared", class="square", align="right"></div>
+            <h1><span class="save">Save</span></h1>
+            <h2><span class="score">0</span></h2>
+            </body>
+
+      <script>
+          const saveButton = document.querySelector('.save');
+          //F11 will make the game fullscreen and while not locked, will make game consistent
+          //attempting to import fs to be able to write to a csv file
+          //var fs = require('fs');
+
+
+          //startTime basically will be the point where the test begins
+          var startTime = new Date();
+          //trialStartTime is the individual trial's start time only used to calculate the time per trial
+          //var trialStartTime;
+          //endTime is not where the test ends, it is used at multiple points to record the timing of each part of the trial
+          var endTime;
+          //checkForMoleClick is not needed for functionality of the game, however for the purposes of not overriding the
+          //timing information when a mole is hit with the time if a mole isn't hit, this variable needs to check for
+          //if the mole was hit so it doesn't record the wrong value
+          var checkForMoleClick = false;
+          //buttonBackTO as a variable allows me to cancel the time out for the button to come back if the player clicks a mole
+          var buttonBackTO;
+          var moleUpTO;
+          // The item (or items) to press and hold on
+          //"Item" refers to the button
+          var item = document.querySelector("#item");
+          //"Squre" refers to the square in the top left for the equipment to sync up
+          var Square = document.getElementsByClassName("square");
+          //"Square2" is going to be a second square in the top right to save the recorded data
+          //var saveButton = document.getElementsByClassName("save");
+          var timerID;
+          var counter = 0;
+          var trial = 0;
+          var pressHoldEvent = new CustomEvent("pressHold");
+
+          // Increase or decreae value to adjust how long
+          // one should keep pressing down before the pressHold
+          // event fires. Duration based on 60 fps so (3 sec = 180 frames
+          var pressHoldDuration = 90;
+
+        // Listening for the mouse and touch events
+        item.addEventListener("mousedown", pressingDown, false);
+        item.addEventListener("mouseup", notPressingDown, false);
+        item.addEventListener("mouseleave", notPressingDown, false);
+
+        item.addEventListener("touchstart", pressingDown, false);
+        item.addEventListener("touchend", notPressingDown, false);
+
+        // Listening for our custom pressHold event
+        item.addEventListener("pressHold", startTrial, false);
+
+        // Adding an event to save the csv file by clicking the square
+        //square.addEventListener('click', saveTextAsCSVFile);
+        saveButton.addEventListener('click', saveTextAsCSVFile);
+
+        function pressingDown(e) {
+          // Start the timer
+          endTime = new Date();
+          trialTimes[1] = endTime - startTime; //in ms
+          requestAnimationFrame(holdButtonTimer);
+
+          e.preventDefault();
+
+          console.log("Pressing!");
+        }
+
+        function notPressingDown(e) {
+          // Stop the timer
+          cancelAnimationFrame(timerID);
+          counter = 0;
+
+          console.log("Not pressing!");
+        }
+
+        //
+        // Runs at 60fps when you are pressing down
+        //
+        function holdButtonTimer() {
+
+          console.log("Timer tick!");
+
+          if (counter < pressHoldDuration) {
+            timerID = requestAnimationFrame(holdButtonTimer);
+            counter++;
+          } else {
+            console.log("Press threshold reached!");
+
+
+            item.dispatchEvent(pressHoldEvent);
+          }
+        }
+
+
+        //Starts up the trial for the game
+        function startTrial(e) {
+          trial++
+          console.log("Trial " + trial)
+          console.log("pressHold event fired!")
+          trialStartTime = new Date();
+          startGame();
+
+          //Leaving this here commented in case I need to come back, attempting to move it elsewhere
+          //startTime = new Date();
+
+          //fills the trial timing array with the "endTime" of each section
+          endTime = new Date();
+          trialTimes[2] = endTime - startTime; //in ms
+          document.getElementById("item").style.visibility = "hidden";
+          //var buttonBackTime = 13340;
+          //Change the number in the
+          buttonBackTO = setTimeout(buttonBack,upTime + 1000); // controls game duration
+          const list = document .getElementsByClassName("square");
+          list[0].style.backgroundColor = "black"; // make the first one red
+
+        }
+
+
+        function checkMoleClick(){
+          //test against a value taken from the trialTimes array to make sure it's asking about its own trial
+          var isMyTrial = new Date();
+          var isMyTrialTimeDiff = isMyTrial - 14839; //13340 - 1 + 1.5 seconds (1500)
+          if(isMyTrialTimeDiff < trialTimes[0]){
+            buttonBack();
+          }
+        }
+
+        //Outputs the Collected Data into a CSV file
+        function saveTextAsCSVFile() {
+          var trialsInfoString = "Trial Start Time,Button Press Start Time,Mole Appear Time,Mole Hole Number," +
+              "Time To Successful Hit (Single Trial),Time Mole Hit (Global)\n";
+          for(i=0; i<trialsInfo.length; i++){
+            trialsInfoString += trialsInfo[i] + "\n";
+          }
+
+
+        	var textToSaveAsBlob = new Blob([trialsInfoString], {type:"text/csv"});
+        	var textToSaveAsURL = window.URL.createObjectURL(textToSaveAsBlob);
+        	var fileNameToSaveAs = "Trial Testing Timing.csv";
+        	var downloadLink = document.createElement("a");
+        	downloadLink.download = fileNameToSaveAs;
+        	downloadLink.innerHTML = "Download File";
+        	downloadLink.href = textToSaveAsURL;
+        	downloadLink.style.display = "none";
+        	document.body.appendChild(downloadLink);
+
+        	downloadLink.click();
+        }
+
+        </script>
+      </body>
+
+      </html>
+
+
+      <div class="game">
+        <div class="hole hole1">
+          <div class="mole"></div>
+        </div>
+        <div class="hole hole2">
+          <div class="mole"></div>
+        </div>
+        <div class="hole hole3">
+          <div class="mole"></div>
+        </div>
+        <div class="hole hole4">
+          <div class="mole"></div>
+        </div>
+        <div class="hole hole5">
+          <div class="mole"></div>
+        </div>
+        <div class="hole hole6">
+          <div class="mole"></div>
+        </div>
+      </div>
+
+      <script>
+      const holes = document.querySelectorAll('.hole');
+      const scoreBoard = document.querySelector('.score');
+
+      const moles = document.querySelectorAll('.mole');
+      let lastHole;
+      let timeUp = false;
+      let score = 0;
+      //targetHit is a checking for a click on the mole that used to be done by score
+      let targetHit = 0;
+
+      //Timing information will be stored in two separate arrays, the first will be the timing for one single trial
+      //and the second will be the overal timing information with string values taken from the first array
+      //If the value in the CSV is -1, that means the child did not hit the mole, and the trial reset
+      var trialTimes = [0, -1, -1, -1, -1, -1]
+      var trialsInfo = [];
+      //May delete later, seeing how the information stored in a global string would work
+      var trialString = "";
+      //Time that the mole will stay up
+      var upTime = 12000;
+
+      //Originally used for picking mole time, unused for sake of consistency of checking reaction times
+      function randomTime(min, max) {
+        return Math.round(Math.random() * (max - min) + min);
+      }
+
+      function randomHole(holes) {
+        const idx = Math.floor(Math.random() * holes.length);
+        const hole = holes[idx];
+        if (hole === lastHole) {
+          console.log('Ah nah thats the same one bud');
+          return randomHole(holes);
+        }
+        lastHole = hole;
+        var holeNum = idx;
+        if(holeNum < 3){
+          holeNum += 4;
+        } else {
+          holeNum -= 2;
+        }
+        trialTimes[3] = holeNum;
+        return hole;
+      }
+
+      function peep() {
+        const time = upTime;
+        //Change time variable to change how long the mole stays up
+        const hole = randomHole(holes);
+        hole.classList.add('up');
+        moleUpTO = setTimeout(() => {
+          hole.classList.remove('up');
+          if (!timeUp){
+            //peep();
+            //commenting this avoids the issue of multiple moles
+          }
+        }, time);
+      }
+
+      function startGame() {
+        scoreBoard.textContent = score;
+        timeUp = false;
+        targetHit = 0;
+        peep();
+        setTimeout(() => timeUp = true, 10000,) // control time up for mole
+
+      };
+
+
+      //Bonk is clicking on the mole
+      function bonk(e) {
+        //if(!e.isTrusted) return; // cheater!
+        clearTimeout(buttonBackTO);
+        clearTimeout(moleUpTO);
+        score++;
+        targetHit++;
+
+
+        this.parentNode.classList.remove('up');
+        scoreBoard.textContent = score;
+
+        endTime = new Date();
+        var timeDiffTrial = endTime - trialStartTime; //in ms
+        trialTimes[4] = timeDiffTrial;
+        // get time
+        //var seconds = Math.round(timeDiff);
+        console.log("Time to successful hit " + timeDiffTrial + " ms");
+
+        if(score > 2){
+          //The commented code works and is a test for changing style sheet information
+          //document.body.style.background = "black";
+
+          //document.getElementById("mole").style.backgroundImage = "url('Chicken.svg')";
+          //document.mole.style.background = "url('Chicken.svg')";
+        }
+
+        buttonBack();
+      }
+      moles.forEach(mole => mole.addEventListener('mousedown', bonk));
+
+      function changeBGColor() {
+        var cols =     document.getElementsByClassName('square');
+        for(i=0; i<cols.length; i++) {
+          cols[i].style.backgroundColor =    'white';
+        }
+      }
+
+      //Makes the button come back at the end of a trial
+      function buttonBack() {
+        endTime = new Date();
+        trialTimes[5] = endTime - startTime; //in ms
+        trialEndCSV();
+        item.style.visibility='visible';
+        const list = document .getElementsByClassName("square");
+        list[0].style.backgroundColor = "white";
+        //originally checked by score, no targetHit
+        if(targetHit == 0) {
+          console.log("No Target Hit");
+        }
+
+
+      }
+
+      function trialEndCSV(){
+        //Commented out to see how storing the information in a single string would work
+        var trialString = "";
+        for(i=0; i<trialTimes.length-1; i++){
+          //intentionally causing errors to check for call points
+          //if(trialTimes[i] == -1){
+          //  enfifrmefomemfoemfmmefrmkrfkmr;
+          //}
+          trialString = trialString + trialTimes[i].toString() + ",";
+        }
+        trialString = trialString + trialTimes[trialTimes.length-1].toString();
+        //trialString = trialString + "\n";
+        trialsInfo.push(trialString);
+        console.log(trialString);
+
+        //Setting the starting time of the next trial
+        for(i=0; i<trialTimes.length; i++){
+          trialTimes[i] = -1;
+        }
+        endTime = new Date();
+        trialTimes[0] = endTime - startTime; //in ms
+        //console.log(trialTimes);
+
+      }
+
+
+    </script>
+
+  </body>
+</html>
